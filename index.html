@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="ET Estimate">
+  <title>ET Estimate</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #111;
+      color: #fff;
+      font-family: -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 18px;
+      color: #aaa;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: #1e1e1e;
+      border-radius: 20px;
+      padding: 32px 48px;
+      margin: 12px;
+      text-align: center;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .label {
+      font-size: 14px;
+      color: #888;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .value {
+      font-size: 72px;
+      font-weight: 700;
+      letter-spacing: -2px;
+      color: #FF6600;
+      line-height: 1;
+    }
+
+    .value.na {
+      font-size: 48px;
+      color: #555;
+    }
+
+    .unit {
+      font-size: 16px;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    .refresh {
+      margin-top: 36px;
+      padding: 14px 40px;
+      background: #333;
+      border: none;
+      color: #fff;
+      border-radius: 30px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .refresh:active {
+      background: #444;
+    }
+
+    .status {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>ET Estimate</h1>
+
+  <div class="card">
+    <div class="label">1/8 Mile</div>
+    <div class="value" id="eighth">...</div>
+    <div class="unit">seconds</div>
+  </div>
+
+  <div class="card">
+    <div class="label">1/4 Mile</div>
+    <div class="value" id="quarter">...</div>
+    <div class="unit">seconds</div>
+  </div>
+
+  <button class="refresh" onclick="loadData()">Refresh</button>
+  <div class="status" id="status"></div>
+
+  <script>
+    // Your Google Sheets published CSV URL
+    var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRoXbQLC91IfKf9kBgqd7faP1VIEc-rMQy4ZE2h3ekdDc7RZPQeevw_pPo_Hr_rue1NdL4nRrGRGh3M/pub?gid=28415674&single=true&output=csv";
+
+    // F3 = column 6 (index 5), G3 = column 7 (index 6), row 3 (index 2)
+    var ET_ROW     = 2;  // 0-based row index for row 3
+    var ET_8TH_COL = 5;  // 0-based column index for column F
+    var ET_4TH_COL = 6;  // 0-based column index for column G
+
+    function parseCSV(text) {
+      return text.split("\n").map(function(row) {
+        // Handle quoted fields with commas inside
+        var result = [], inQuote = false, field = "";
+        for (var i = 0; i < row.length; i++) {
+          var ch = row[i];
+          if (ch === '"') { inQuote = !inQuote; }
+          else if (ch === ',' && !inQuote) { result.push(field.trim()); field = ""; }
+          else { field += ch; }
+        }
+        result.push(field.trim());
+        return result;
+      });
+    }
+
+    function loadData() {
+      document.getElementById("eighth").textContent  = "...";
+      document.getElementById("quarter").textContent = "...";
+      document.getElementById("eighth").className    = "value";
+      document.getElementById("quarter").className   = "value";
+      document.getElementById("status").textContent  = "Loading...";
+
+      // Cache-bust the CSV URL with a timestamp
+      fetch(CSV_URL + "&cachebust=" + Date.now())
+        .then(function(r) { return r.text(); })
+        .then(function(text) {
+          var rows = parseCSV(text);
+
+          var eighth  = (rows[ET_ROW] && rows[ET_ROW][ET_8TH_COL]) ? rows[ET_ROW][ET_8TH_COL] : "";
+          var quarter = (rows[ET_ROW] && rows[ET_ROW][ET_4TH_COL]) ? rows[ET_ROW][ET_4TH_COL] : "";
+
+          var e8 = parseFloat(eighth);
+          var e4 = parseFloat(quarter);
+
+          if (!isNaN(e8) && e8 > 0) {
+            document.getElementById("eighth").textContent = e8.toFixed(3);
+          } else {
+            document.getElementById("eighth").textContent = "N/A";
+            document.getElementById("eighth").className   = "value na";
+          }
+
+          if (!isNaN(e4) && e4 > 0) {
+            document.getElementById("quarter").textContent = e4.toFixed(3);
+          } else {
+            document.getElementById("quarter").textContent = "N/A";
+            document.getElementById("quarter").className   = "value na";
+          }
+
+          var now = new Date();
+          document.getElementById("status").textContent =
+            "Updated " + now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+        })
+        .catch(function(err) {
+          document.getElementById("eighth").textContent  = "ERR";
+          document.getElementById("quarter").textContent = "ERR";
+          document.getElementById("status").textContent  = "Could not load data";
+        });
+    }
+
+    // Load on page open
+    loadData();
+  </script>
+
+</body>
+</html>
