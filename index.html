@@ -27,14 +27,28 @@
       color: #aaa;
       letter-spacing: 2px;
       text-transform: uppercase;
-      margin-bottom: 40px;
+      margin-bottom: 24px;
+    }
+
+    select {
+      width: 100%;
+      max-width: 320px;
+      padding: 12px 16px;
+      background: #1e1e1e;
+      color: #fff;
+      border: 1px solid #333;
+      border-radius: 12px;
+      font-size: 16px;
+      margin-bottom: 24px;
+      appearance: none;
+      text-align: center;
     }
 
     .card {
       background: #1e1e1e;
       border-radius: 20px;
-      padding: 32px 48px;
-      margin: 12px;
+      padding: 28px 48px;
+      margin: 10px;
       text-align: center;
       width: 100%;
       max-width: 320px;
@@ -67,121 +81,328 @@
       margin-top: 6px;
     }
 
-    .refresh {
-      margin-top: 36px;
-      padding: 14px 40px;
-      background: #333;
-      border: none;
-      color: #fff;
-      border-radius: 30px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    .refresh:active {
-      background: #444;
-    }
-
-    .status {
-      margin-top: 16px;
+    .meta {
       font-size: 12px;
       color: #555;
+      margin-top: 4px;
     }
+
+    .weather {
+      margin-top: 20px;
+      background: #1a1a1a;
+      border-radius: 14px;
+      padding: 14px 20px;
+      width: 100%;
+      max-width: 320px;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.8;
+      text-align: center;
+    }
+
+    .weather span { color: #aaa; }
+
+    .status {
+      margin-top: 14px;
+      font-size: 11px;
+      color: #444;
+    }
+
+    .error { color: #c0392b; font-size: 13px; margin-top: 16px; text-align: center; }
   </style>
 </head>
 <body>
 
   <h1>ET Estimate</h1>
 
+  <select id="trackSelect" onchange="calculate()">
+    <option value="">Select Track...</option>
+    <option value="South Mountain">South Mountain</option>
+    <option value="Beaver Springs">Beaver Springs</option>
+    <option value="Cecil County">Cecil County</option>
+    <option value="Numidia">Numidia</option>
+    <option value="Maple Grove">Maple Grove</option>
+  </select>
+
   <div class="card">
     <div class="label">1/8 Mile</div>
-    <div class="value" id="eighth">...</div>
+    <div class="value na" id="eighth">—</div>
     <div class="unit">seconds</div>
+    <div class="meta" id="eighth-meta"></div>
   </div>
 
   <div class="card">
     <div class="label">1/4 Mile</div>
-    <div class="value" id="quarter">...</div>
+    <div class="value na" id="quarter">—</div>
     <div class="unit">seconds</div>
+    <div class="meta" id="quarter-meta"></div>
   </div>
 
-  <button class="refresh" onclick="loadData()">Refresh</button>
-  <div class="status" id="status"></div>
+  <div class="weather" id="weather" style="display:none">
+    <div><span id="w-temp">—</span> °F &nbsp;|&nbsp; Dew <span id="w-dew">—</span> °F</div>
+    <div>Humidity <span id="w-hum">—</span>% &nbsp;|&nbsp; Pressure <span id="w-pres">—</span> inHg</div>
+    <div>Wind <span id="w-wind">—</span> mph <span id="w-dir">—</span></div>
+  </div>
+
+  <div class="status" id="status">Select a track to begin</div>
+  <div class="error" id="error"></div>
 
   <script>
-    // Your Google Sheets published CSV URL
-    var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRoXbQLC91IfKf9kBgqd7faP1VIEc-rMQy4ZE2h3ekdDc7RZPQeevw_pPo_Hr_rue1NdL4nRrGRGh3M/pub?gid=28415674&single=true&output=csv";
+  // ── Config ──────────────────────────────────────────────────────────────────
 
-    // F3 = column 6 (index 5), G3 = column 7 (index 6), row 3 (index 2)
-    var ET_ROW     = 2;  // 0-based row index for row 3
-    var ET_8TH_COL = 5;  // 0-based column index for column F
-    var ET_4TH_COL = 6;  // 0-based column index for column G
+  var TRACKS = {
+    "South Mountain": { lat: 40.1495, lon: -77.1255 },
+    "Beaver Springs":  { lat: 40.7373, lon: -77.2016 },
+    "Cecil County":    { lat: 39.5651, lon: -75.9313 },
+    "Numidia":         { lat: 40.9476, lon: -76.4577 },
+    "Maple Grove":     { lat: 40.3101, lon: -75.9974 }
+  };
 
-    function parseCSV(text) {
-      return text.split("\n").map(function(row) {
-        // Handle quoted fields with commas inside
-        var result = [], inQuote = false, field = "";
-        for (var i = 0; i < row.length; i++) {
-          var ch = row[i];
-          if (ch === '"') { inQuote = !inQuote; }
-          else if (ch === ',' && !inQuote) { result.push(field.trim()); field = ""; }
-          else { field += ch; }
-        }
-        result.push(field.trim());
-        return result;
+  // Published Google Sheet CSV URL (full sheet)
+  var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRoXbQLC91IfKf9kBgqd7faP1VIEc-rMQy4ZE2h3ekdDc7RZPQeevw_pPo_Hr_rue1NdL4nRrGRGh3M/pub?gid=28415674&single=true&output=csv";
+
+  // Column indexes (0-based, matching your sheet columns)
+  var COL_TRACK   = 0;   // A
+  var COL_QUALITY = 5;   // F
+  var COL_ET_8TH  = 12;  // M
+  var COL_ET_4TH  = 17;  // R
+  var COL_RPM     = 26;  // AA
+  var COL_TEMP    = 18;  // S
+  var COL_HUM     = 19;  // T
+  var COL_WSPD    = 20;  // U
+  var COL_WDIR    = 21;  // V
+  var COL_DEW     = 22;  // W
+  var COL_PRESS   = 23;  // X
+  var COL_ETDIFF  = 28;  // AC
+
+  var FIRST_DATA_ROW = 6; // 0-based index for row 7
+  var RPM_MIN = 2000, RPM_RANGE = 500;
+
+  var WEIGHTS = { temp: 1.0, hum: 0.8, wind: 0.5, dew: 1.2, pressure: 1.5, rpm: 1.0 };
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  var currentWeather = null;
+  var sheetRows      = null;
+  var refreshTimer   = null;
+
+  // ── CSV Parser ──────────────────────────────────────────────────────────────
+  function parseCSV(text) {
+    return text.split("\n").map(function(row) {
+      var result = [], inQuote = false, field = "";
+      for (var i = 0; i < row.length; i++) {
+        var ch = row[i];
+        if (ch === '"') { inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { result.push(field.trim()); field = ""; }
+        else { field += ch; }
+      }
+      result.push(field.trim());
+      return result;
+    });
+  }
+
+  // ── Unit conversions ────────────────────────────────────────────────────────
+  function cToF(c)      { return (c * 9/5) + 32; }
+  function msToMph(v)   { return v * 2.23694; }
+  function hpaToInhg(h) { return h * 0.02953; }
+  function dewPoint(tC, rh) {
+    var a = 17.27, b = 237.7;
+    var alpha = ((a * tC) / (b + tC)) + Math.log(rh / 100);
+    return (b * alpha) / (a - alpha);
+  }
+  function degToCompass(d) {
+    var dirs = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+    return dirs[Math.round(d / 22.5) % 16];
+  }
+
+  // ── Fetch weather from Open-Meteo ───────────────────────────────────────────
+  function fetchWeather(track) {
+    var coords = TRACKS[track];
+    var url = "https://api.open-meteo.com/v1/forecast"
+      + "?latitude="  + coords.lat
+      + "&longitude=" + coords.lon
+      + "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,surface_pressure"
+      + "&temperature_unit=celsius&wind_speed_unit=ms&timezone=America%2FNew_York";
+
+    return fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var c = data.current;
+        var tC  = c.temperature_2m;
+        var rh  = c.relative_humidity_2m;
+        var wms = c.wind_speed_10m;
+        var wd  = c.wind_direction_10m;
+        var hpa = c.surface_pressure;
+        return {
+          tempF:   cToF(tC),
+          rh:      rh,
+          windMph: msToMph(wms),
+          windDir: degToCompass(wd),
+          dewF:    cToF(dewPoint(tC, rh)),
+          pressIn: hpaToInhg(hpa)
+        };
       });
+  }
+
+  // ── Fetch sheet CSV ─────────────────────────────────────────────────────────
+  function fetchSheet() {
+    return fetch(CSV_URL + "&cachebust=" + Date.now())
+      .then(function(r) { return r.text(); })
+      .then(function(text) { return parseCSV(text); });
+  }
+
+  // ── Estimate ET ─────────────────────────────────────────────────────────────
+  function estimateET(rows, track, weather, etCol) {
+    var candidates = [];
+
+    for (var i = FIRST_DATA_ROW; i < rows.length; i++) {
+      var row = rows[i];
+      if (!row || row.length < 24) continue;
+
+      // Match track
+      if ((row[COL_TRACK] || "").trim() !== track) continue;
+
+      // Only All Out runs
+      var quality = (row[COL_QUALITY] || "").toLowerCase();
+      if (quality.indexOf("flawed") !== -1 || quality.indexOf("lifted") !== -1) continue;
+
+      // Must have an ET
+      var et = parseFloat(row[etCol]);
+      if (isNaN(et) || et <= 0) continue;
+
+      // Must have weather data
+      var rTemp  = parseFloat(row[COL_TEMP]);
+      var rHum   = parseFloat(row[COL_HUM]);
+      var rWind  = parseFloat(row[COL_WSPD]);
+      var rDew   = parseFloat(row[COL_DEW]);
+      var rPress = parseFloat(row[COL_PRESS]);
+      if (isNaN(rTemp) || isNaN(rHum) || isNaN(rPress)) continue;
+
+      // RPM factor
+      var rRPM   = parseFloat(row[COL_RPM]);
+      var rpmTerm = 0;
+      if (!isNaN(weather.launchRPM) && !isNaN(rRPM)) {
+        var curNorm = (weather.launchRPM - RPM_MIN) / RPM_RANGE;
+        var rowNorm = (rRPM - RPM_MIN) / RPM_RANGE;
+        rpmTerm = WEIGHTS.rpm * Math.pow(curNorm - rowNorm, 2);
+      }
+
+      // Weighted distance
+      var dist = Math.sqrt(
+        WEIGHTS.temp     * Math.pow(weather.tempF   - rTemp,  2) +
+        WEIGHTS.hum      * Math.pow(weather.rh      - rHum,   2) +
+        WEIGHTS.wind     * Math.pow(weather.windMph - rWind,  2) +
+        WEIGHTS.dew      * Math.pow(weather.dewF    - rDew,   2) +
+        WEIGHTS.pressure * Math.pow(weather.pressIn - rPress, 2) +
+        rpmTerm
+      );
+
+      // Confidence from AC column
+      var etDiff     = parseFloat(row[COL_ETDIFF]);
+      var confidence = isNaN(etDiff) ? 1.0 : 1.0 / (1.0 + Math.abs(etDiff) * 10);
+
+      candidates.push({ et: et, dist: dist, confidence: confidence });
     }
 
-    function loadData() {
-      document.getElementById("eighth").textContent  = "...";
-      document.getElementById("quarter").textContent = "...";
-      document.getElementById("eighth").className    = "value";
-      document.getElementById("quarter").className   = "value";
-      document.getElementById("status").textContent  = "Loading...";
+    if (candidates.length === 0) return null;
 
-      // Cache-bust the CSV URL with a timestamp
-      fetch(CSV_URL + "&cachebust=" + Date.now())
-        .then(function(r) { return r.text(); })
-        .then(function(text) {
-          var rows = parseCSV(text);
+    candidates.sort(function(a, b) { return a.dist - b.dist; });
+    var pool = candidates.slice(0, Math.min(10, candidates.length));
 
-          var eighth  = (rows[ET_ROW] && rows[ET_ROW][ET_8TH_COL]) ? rows[ET_ROW][ET_8TH_COL] : "";
-          var quarter = (rows[ET_ROW] && rows[ET_ROW][ET_4TH_COL]) ? rows[ET_ROW][ET_4TH_COL] : "";
-
-          var e8 = parseFloat(eighth);
-          var e4 = parseFloat(quarter);
-
-          if (!isNaN(e8) && e8 > 0) {
-            document.getElementById("eighth").textContent = e8.toFixed(3);
-          } else {
-            document.getElementById("eighth").textContent = "N/A";
-            document.getElementById("eighth").className   = "value na";
-          }
-
-          if (!isNaN(e4) && e4 > 0) {
-            document.getElementById("quarter").textContent = e4.toFixed(3);
-          } else {
-            document.getElementById("quarter").textContent = "N/A";
-            document.getElementById("quarter").className   = "value na";
-          }
-
-          var now = new Date();
-          document.getElementById("status").textContent =
-            "Updated " + now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-        })
-        .catch(function(err) {
-          document.getElementById("eighth").textContent  = "ERR";
-          document.getElementById("quarter").textContent = "ERR";
-          document.getElementById("status").textContent  = "Could not load data";
-        });
+    var EPSILON = 0.0001, weightSum = 0, etSum = 0;
+    for (var j = 0; j < pool.length; j++) {
+      var w = (1 / (pool[j].dist + EPSILON)) * pool[j].confidence;
+      etSum += w * pool[j].et;
+      weightSum += w;
     }
 
-    // Load on page open
-    loadData();
+    return {
+      et:    Math.round((etSum / weightSum) * 1000) / 1000,
+      count: candidates.length,
+      used:  pool.length
+    };
+  }
 
-    // Auto-refresh every 30 seconds
-    setInterval(loadData, 30000);
+  // ── Display helpers ─────────────────────────────────────────────────────────
+  function showValue(id, metaId, result) {
+    var el   = document.getElementById(id);
+    var meta = document.getElementById(metaId);
+    if (result) {
+      el.textContent   = result.et.toFixed(3);
+      el.className     = "value";
+      meta.textContent = "from " + result.used + " of " + result.count + " runs";
+    } else {
+      el.textContent   = "N/A";
+      el.className     = "value na";
+      meta.textContent = "no qualifying runs";
+    }
+  }
+
+  function showWeather(w) {
+    document.getElementById("w-temp").textContent = Math.round(w.tempF * 10) / 10;
+    document.getElementById("w-dew").textContent  = Math.round(w.dewF  * 10) / 10;
+    document.getElementById("w-hum").textContent  = Math.round(w.rh);
+    document.getElementById("w-pres").textContent = Math.round(w.pressIn * 100) / 100;
+    document.getElementById("w-wind").textContent = Math.round(w.windMph * 10) / 10;
+    document.getElementById("w-dir").textContent  = w.windDir;
+    document.getElementById("weather").style.display = "block";
+  }
+
+  function setStatus(msg) {
+    document.getElementById("status").textContent = msg;
+  }
+
+  function setError(msg) {
+    document.getElementById("error").textContent = msg;
+  }
+
+  // ── Main calculate function ─────────────────────────────────────────────────
+  function calculate() {
+    var track = document.getElementById("trackSelect").value;
+    if (!track) {
+      setStatus("Select a track to begin");
+      return;
+    }
+
+    setError("");
+    setStatus("Fetching weather & run data...");
+    document.getElementById("eighth").textContent  = "...";
+    document.getElementById("quarter").textContent = "...";
+    document.getElementById("eighth").className    = "value na";
+    document.getElementById("quarter").className   = "value na";
+    document.getElementById("eighth-meta").textContent  = "";
+    document.getElementById("quarter-meta").textContent = "";
+
+    Promise.all([fetchWeather(track), fetchSheet()])
+      .then(function(results) {
+        var weather = results[0];
+        var rows    = results[1];
+
+        currentWeather = weather;
+        sheetRows      = rows;
+
+        showWeather(weather);
+
+        var est8  = estimateET(rows, track, weather, COL_ET_8TH);
+        var est4  = estimateET(rows, track, weather, COL_ET_4TH);
+
+        showValue("eighth",  "eighth-meta",  est8);
+        showValue("quarter", "quarter-meta", est4);
+
+        var now = new Date();
+        setStatus("Updated " + now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }));
+      })
+      .catch(function(err) {
+        setError("Error loading data. Check connection.");
+        setStatus("");
+        console.error(err);
+      });
+  }
+
+  // ── Auto-refresh removed — use the Refresh button ──────────────────────────
+
   </script>
+
+  <button onclick="calculate()" style="margin-top:24px;padding:14px 48px;background:#333;border:none;color:#fff;border-radius:30px;font-size:16px;cursor:pointer;">Refresh</button>
 
 </body>
 </html>
