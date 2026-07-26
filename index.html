@@ -8,114 +8,42 @@
   <meta name="apple-mobile-web-app-title" content="ET Estimate">
   <title>ET Estimate</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      background: #111;
-      color: #fff;
-      font-family: -apple-system, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-
-    h1 {
-      font-size: 18px;
-      color: #aaa;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 24px;
-    }
-
-    select {
-      width: 100%;
-      max-width: 320px;
-      padding: 12px 16px;
-      background: #1e1e1e;
-      color: #fff;
-      border: 1px solid #333;
-      border-radius: 12px;
-      font-size: 16px;
-      margin-bottom: 24px;
-      appearance: none;
-      text-align: center;
-    }
-
-    .card {
-      background: #1e1e1e;
-      border-radius: 20px;
-      padding: 28px 48px;
-      margin: 10px;
-      text-align: center;
-      width: 100%;
-      max-width: 320px;
-    }
-
-    .label {
-      font-size: 14px;
-      color: #888;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-
-    .value {
-      font-size: 72px;
-      font-weight: 700;
-      letter-spacing: -2px;
-      color: #FF6600;
-      line-height: 1;
-    }
-
-    .value.na {
-      font-size: 48px;
-      color: #555;
-    }
-
-    .unit {
-      font-size: 16px;
-      color: #666;
-      margin-top: 6px;
-    }
-
-    .meta {
-      font-size: 12px;
-      color: #555;
-      margin-top: 4px;
-    }
-
-    .weather {
-      margin-top: 20px;
-      background: #1a1a1a;
-      border-radius: 14px;
-      padding: 14px 20px;
-      width: 100%;
-      max-width: 320px;
-      font-size: 12px;
-      color: #666;
-      line-height: 1.8;
-      text-align: center;
-    }
-
-    .weather span { color: #aaa; }
-
-    .status {
-      margin-top: 14px;
-      font-size: 11px;
-      color: #444;
-    }
-
-    .error { color: #c0392b; font-size: 13px; margin-top: 16px; text-align: center; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#111; color:#fff; font-family:-apple-system,sans-serif;
+           display:flex; flex-direction:column; align-items:center;
+           justify-content:center; min-height:100vh; padding:20px; }
+    h1 { font-size:18px; color:#aaa; letter-spacing:2px; text-transform:uppercase; margin-bottom:16px; }
+    select { width:100%; max-width:320px; padding:12px 16px; background:#1e1e1e;
+             color:#fff; border:1px solid #333; border-radius:12px; font-size:16px;
+             margin-bottom:12px; text-align:center; }
+    input[type=number] { width:100%; max-width:320px; padding:12px 16px;
+             background:#1e1e1e; color:#fff; border:1px solid #333;
+             border-radius:12px; font-size:16px; margin-bottom:20px;
+             text-align:center; }
+    input::placeholder { color:#555; }
+    .card { background:#1e1e1e; border-radius:20px; padding:24px 48px; margin:10px;
+            text-align:center; width:100%; max-width:320px; }
+    .label { font-size:13px; color:#888; letter-spacing:1px; text-transform:uppercase; margin-bottom:8px; }
+    .value { font-size:64px; font-weight:700; letter-spacing:-2px; color:#FF6600; line-height:1; }
+    .value.na { font-size:40px; color:#555; }
+    .unit { font-size:14px; color:#666; margin-top:4px; }
+    .meta { font-size:11px; color:#555; margin-top:4px; }
+    .weather { margin-top:16px; background:#1a1a1a; border-radius:14px;
+               padding:12px 20px; width:100%; max-width:320px;
+               font-size:12px; color:#666; line-height:1.9; text-align:center; }
+    .weather span { color:#aaa; }
+    .btn { margin-top:20px; padding:14px 48px; background:#2E75B6; border:none;
+           color:#fff; border-radius:30px; font-size:16px; cursor:pointer; width:100%; max-width:320px; }
+    .btn:active { background:#1F4E79; }
+    .status { margin-top:12px; font-size:11px; color:#444; }
+    .warn { color:#e65100; font-size:12px; margin-top:8px; text-align:center; max-width:320px; }
+    .error { color:#c0392b; font-size:13px; margin-top:12px; text-align:center; }
   </style>
 </head>
 <body>
-
   <h1>ET Estimate</h1>
 
-  <select id="trackSelect" onchange="calculate()">
+  <select id="trackSelect" onchange="onTrackChange()">
     <option value="">Select Track...</option>
     <option value="South Mountain">South Mountain</option>
     <option value="Beaver Springs">Beaver Springs</option>
@@ -123,6 +51,9 @@
     <option value="Numidia">Numidia</option>
     <option value="Maple Grove">Maple Grove</option>
   </select>
+
+  <input type="number" id="sixtyInput" placeholder="60' time (optional, e.g. 1.712)"
+         step="0.001" min="1.0" max="2.5">
 
   <div class="card">
     <div class="label">1/8 Mile</div>
@@ -139,270 +70,314 @@
   </div>
 
   <div class="weather" id="weather" style="display:none">
-    <div><span id="w-temp">—</span> °F &nbsp;|&nbsp; Dew <span id="w-dew">—</span> °F</div>
+    <div>Temp <span id="w-temp">—</span>°F &nbsp;|&nbsp; Dew <span id="w-dew">—</span>°F</div>
     <div>Humidity <span id="w-hum">—</span>% &nbsp;|&nbsp; Pressure <span id="w-pres">—</span> inHg</div>
     <div>Wind <span id="w-wind">—</span> mph <span id="w-dir">—</span></div>
+    <div>Density Alt <span id="w-da">—</span> ft</div>
   </div>
 
+  <div class="warn" id="warn"></div>
+  <button class="btn" onclick="calculate()">Calculate</button>
   <div class="status" id="status">Select a track to begin</div>
   <div class="error" id="error"></div>
 
-  <script>
-  // ── Config ──────────────────────────────────────────────────────────────────
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+var TRACKS = {
+  "South Mountain": { lat: 40.1495, lon: -77.1255 },
+  "Beaver Springs":  { lat: 40.7373, lon: -77.2016 },
+  "Cecil County":    { lat: 39.5651, lon: -75.9313 },
+  "Numidia":         { lat: 40.9476, lon: -76.4577 },
+  "Maple Grove":     { lat: 40.3101, lon: -75.9974 }
+};
 
-  var TRACKS = {
-    "South Mountain": { lat: 40.1495, lon: -77.1255 },
-    "Beaver Springs":  { lat: 40.7373, lon: -77.2016 },
-    "Cecil County":    { lat: 39.5651, lon: -75.9313 },
-    "Numidia":         { lat: 40.9476, lon: -76.4577 },
-    "Maple Grove":     { lat: 40.3101, lon: -75.9974 }
-  };
+// Published Google Sheets CSV URL
+var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRoXbQLC91IfKf9kBgqd7faP1VIEc-rMQy4ZE2h3ekdDc7RZPQeevw_pPo_Hr_rue1NdL4nRrGRGh3M/pub?gid=28415674&single=true&output=csv";
 
-  // Published Google Sheet CSV URL (full sheet)
-  var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRoXbQLC91IfKf9kBgqd7faP1VIEc-rMQy4ZE2h3ekdDc7RZPQeevw_pPo_Hr_rue1NdL4nRrGRGh3M/pub?gid=28415674&single=true&output=csv";
+// Column indexes (0-based) — must match sheet layout
+var COL_TRACK   = 0;   // A
+var COL_QUALITY = 5;   // F
+var COL_SIXTY   = 8;   // I
+var COL_ET_8TH  = 12;  // M
+var COL_ET_4TH  = 17;  // R
+var COL_TEMP    = 18;  // S
+var COL_HUM     = 19;  // T
+var COL_WSPD    = 20;  // U
+var COL_WDIR    = 21;  // V
+var COL_DEW     = 22;  // W
+var COL_PRESS   = 23;  // X
+var COL_DA      = 24;  // Y
+var COL_RPM     = 28;  // AC
+var COL_ETDIFF  = 27;  // AB
+var COL_TIRE    = 30;  // AE
 
-  // Column indexes (0-based, matching your sheet columns)
-  var COL_TRACK   = 0;   // A
-  var COL_QUALITY = 5;   // F
-  var COL_ET_8TH  = 12;  // M
-  var COL_ET_4TH  = 17;  // R
-  var COL_RPM     = 26;  // AA
-  var COL_TEMP    = 18;  // S
-  var COL_HUM     = 19;  // T
-  var COL_WSPD    = 20;  // U
-  var COL_WDIR    = 21;  // V
-  var COL_DEW     = 22;  // W
-  var COL_PRESS   = 23;  // X
-  var COL_ETDIFF  = 28;  // AC
+var FIRST_DATA_ROW = 6; // 0-based index for sheet row 7
+var MIN_RUNS = 5;
+var SIXTY_WINDOW = 0.030;
 
-  var FIRST_DATA_ROW = 6; // 0-based index for row 7
-  var RPM_MIN = 2000, RPM_RANGE = 500;
+// Weights — must exactly match WeatherLogger.gs v1.0.38
+var W = { temp:0.3, hum:0.2, wind:0.1, dew:0.3, press:3.0,
+          rpm:0.4, da:5.0, react:0.2, tire:0.3 };
 
-  var WEIGHTS = { temp: 1.0, hum: 0.8, wind: 0.5, dew: 1.2, pressure: 1.5, rpm: 1.0 };
+var RPM_MIN=2000, RPM_RANGE=500;
+var TIRE_MIN=15,  TIRE_RANGE=5;
 
-  // ── State ───────────────────────────────────────────────────────────────────
-  var currentWeather = null;
-  var sheetRows      = null;
-  var refreshTimer   = null;
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function cToF(c)      { return (c*9/5)+32; }
+function msToMph(v)   { return v*2.23694; }
+function hpaToInhg(h) { return h*0.02953; }
+function dewPoint(tC,rh) {
+  var a=17.27,b=237.7,alpha=((a*tC)/(b+tC))+Math.log(rh/100);
+  return (b*alpha)/(a-alpha);
+}
+function degToCompass(d) {
+  var dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  return dirs[Math.round(d/22.5)%16];
+}
+function calcDA(tempF,rh,pressIn) {
+  var tempC=(tempF-32)*5/9, pressHpa=pressIn/0.02953;
+  var es=6.1078*Math.pow(10,(7.5*tempC)/(237.3+tempC));
+  var e=(rh/100)*es;
+  var pressAltFt=145366.45*(1-Math.pow(pressHpa/1013.25,0.190284));
+  return pressAltFt+(120*(tempC-(15-0.001981*pressAltFt)));
+}
 
-  // ── CSV Parser ──────────────────────────────────────────────────────────────
-  function parseCSV(text) {
-    return text.split("\n").map(function(row) {
-      var result = [], inQuote = false, field = "";
-      for (var i = 0; i < row.length; i++) {
-        var ch = row[i];
-        if (ch === '"') { inQuote = !inQuote; }
-        else if (ch === ',' && !inQuote) { result.push(field.trim()); field = ""; }
-        else { field += ch; }
-      }
-      result.push(field.trim());
-      return result;
-    });
-  }
+// ── CSV Parser ────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  return text.split("\n").map(function(row) {
+    var result=[],inQuote=false,field="";
+    for(var i=0;i<row.length;i++){
+      var ch=row[i];
+      if(ch==='"'){inQuote=!inQuote;}
+      else if(ch===','&&!inQuote){result.push(field.trim());field="";}
+      else{field+=ch;}
+    }
+    result.push(field.trim());
+    return result;
+  });
+}
 
-  // ── Unit conversions ────────────────────────────────────────────────────────
-  function cToF(c)      { return (c * 9/5) + 32; }
-  function msToMph(v)   { return v * 2.23694; }
-  function hpaToInhg(h) { return h * 0.02953; }
-  function dewPoint(tC, rh) {
-    var a = 17.27, b = 237.7;
-    var alpha = ((a * tC) / (b + tC)) + Math.log(rh / 100);
-    return (b * alpha) / (a - alpha);
-  }
-  function degToCompass(d) {
-    var dirs = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
-    return dirs[Math.round(d / 22.5) % 16];
-  }
+// ── Estimation — mirrors _estimateET in WeatherLogger.gs ─────────────────────
+function estimateET(rows, track, weather, etCol, cur60) {
+  var has60 = !isNaN(cur60) && cur60 > 0;
+  var candidates = [];
 
-  // ── Fetch weather from Open-Meteo ───────────────────────────────────────────
-  function fetchWeather(track) {
-    var coords = TRACKS[track];
-    var url = "https://api.open-meteo.com/v1/forecast"
-      + "?latitude="  + coords.lat
-      + "&longitude=" + coords.lon
-      + "&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,surface_pressure"
-      + "&temperature_unit=celsius&wind_speed_unit=ms&timezone=America%2FNew_York";
-
-    return fetch(url)
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        var c = data.current;
-        var tC  = c.temperature_2m;
-        var rh  = c.relative_humidity_2m;
-        var wms = c.wind_speed_10m;
-        var wd  = c.wind_direction_10m;
-        var hpa = c.surface_pressure;
-        return {
-          tempF:   cToF(tC),
-          rh:      rh,
-          windMph: msToMph(wms),
-          windDir: degToCompass(wd),
-          dewF:    cToF(dewPoint(tC, rh)),
-          pressIn: hpaToInhg(hpa)
-        };
-      });
-  }
-
-  // ── Fetch sheet CSV ─────────────────────────────────────────────────────────
-  function fetchSheet() {
-    return fetch(CSV_URL + "&cachebust=" + Date.now())
-      .then(function(r) { return r.text(); })
-      .then(function(text) { return parseCSV(text); });
-  }
-
-  // ── Estimate ET ─────────────────────────────────────────────────────────────
-  function estimateET(rows, track, weather, etCol) {
-    var candidates = [];
-
-    for (var i = FIRST_DATA_ROW; i < rows.length; i++) {
+  function buildCandidates(use60Filter) {
+    var c = [];
+    for (var i=FIRST_DATA_ROW; i<rows.length; i++) {
       var row = rows[i];
       if (!row || row.length < 24) continue;
+      if ((row[COL_TRACK]||"").trim() !== track) continue;
 
-      // Match track
-      if ((row[COL_TRACK] || "").trim() !== track) continue;
+      // Quality filter
+      var q = (row[COL_QUALITY]||"").toLowerCase();
+      if (q.indexOf("flawed")!==-1 || q.indexOf("lifted")!==-1) continue;
 
-      // Only All Out runs
-      var quality = (row[COL_QUALITY] || "").toLowerCase();
-      if (quality.indexOf("flawed") !== -1 || quality.indexOf("lifted") !== -1) continue;
-
-      // Must have an ET
+      // ET
       var et = parseFloat(row[etCol]);
-      if (isNaN(et) || et <= 0) continue;
+      if (isNaN(et) || et<=0) continue;
 
-      // Must have weather data
+      // 60' filter
+      if (use60Filter && has60) {
+        var row60 = parseFloat(row[COL_SIXTY]);
+        if (!isNaN(row60) && row60>0 && Math.abs(cur60-row60)>SIXTY_WINDOW) continue;
+      }
+
+      // Weather
       var rTemp  = parseFloat(row[COL_TEMP]);
       var rHum   = parseFloat(row[COL_HUM]);
       var rWind  = parseFloat(row[COL_WSPD]);
       var rDew   = parseFloat(row[COL_DEW]);
       var rPress = parseFloat(row[COL_PRESS]);
-      if (isNaN(rTemp) || isNaN(rHum) || isNaN(rPress)) continue;
+      var rDA    = parseFloat(row[COL_DA]);
+      if (isNaN(rTemp)||isNaN(rHum)||isNaN(rPress)) continue;
 
-      // RPM factor
-      var rRPM   = parseFloat(row[COL_RPM]);
+      // DA term
+      var daTerm = (!isNaN(weather.da)&&!isNaN(rDA))
+        ? W.da * Math.pow((weather.da-rDA)/500,2) : 0;
+
+      // RPM term
+      var rRPM = parseFloat(row[COL_RPM]);
       var rpmTerm = 0;
-      if (!isNaN(weather.launchRPM) && !isNaN(rRPM)) {
-        var curNorm = (weather.launchRPM - RPM_MIN) / RPM_RANGE;
-        var rowNorm = (rRPM - RPM_MIN) / RPM_RANGE;
-        rpmTerm = WEIGHTS.rpm * Math.pow(curNorm - rowNorm, 2);
+      if (!isNaN(weather.launchRPM)) {
+        var cRPMn = (weather.launchRPM-RPM_MIN)/RPM_RANGE;
+        var rRPMn = isNaN(rRPM) ? cRPMn : (rRPM-RPM_MIN)/RPM_RANGE;
+        rpmTerm = W.rpm * Math.pow(cRPMn-rRPMn,2);
       }
 
-      // Weighted distance
+      // Tire term
+      var rTire = parseFloat(row[COL_TIRE]);
+      var tireTerm = 0;
+      if (!isNaN(weather.tire)&&!isNaN(rTire)) {
+        tireTerm = W.tire * Math.pow((weather.tire-TIRE_MIN)/TIRE_RANGE-(rTire-TIRE_MIN)/TIRE_RANGE,2);
+      }
+
       var dist = Math.sqrt(
-        WEIGHTS.temp     * Math.pow(weather.tempF   - rTemp,  2) +
-        WEIGHTS.hum      * Math.pow(weather.rh      - rHum,   2) +
-        WEIGHTS.wind     * Math.pow(weather.windMph - rWind,  2) +
-        WEIGHTS.dew      * Math.pow(weather.dewF    - rDew,   2) +
-        WEIGHTS.pressure * Math.pow(weather.pressIn - rPress, 2) +
-        rpmTerm
+        W.temp  * Math.pow(weather.tempF  -rTemp, 2) +
+        W.hum   * Math.pow(weather.rh     -rHum,  2) +
+        W.wind  * Math.pow(weather.windMph-rWind, 2) +
+        W.dew   * Math.pow(weather.dewF   -rDew,  2) +
+        W.press * Math.pow(weather.pressIn-rPress, 2) +
+        daTerm + rpmTerm + tireTerm
       );
 
-      // Confidence from AC column
-      var etDiff     = parseFloat(row[COL_ETDIFF]);
-      var confidence = isNaN(etDiff) ? 1.0 : 1.0 / (1.0 + Math.abs(etDiff) * 10);
+      // Confidence from AB column (ET diff)
+      var etDiff = parseFloat(row[COL_ETDIFF]);
+      var conf   = isNaN(etDiff) ? 1.0 : 1.0/(1.0+Math.abs(etDiff)*10);
 
-      candidates.push({ et: et, dist: dist, confidence: confidence });
+      c.push({ et:et, dist:dist, conf:conf, da:rDA });
     }
+    return c;
+  }
 
-    if (candidates.length === 0) return null;
+  candidates = buildCandidates(true);
+  var sixtyNote = "";
 
-    candidates.sort(function(a, b) { return a.dist - b.dist; });
-    var pool = candidates.slice(0, Math.min(10, candidates.length));
+  // Fallback if 60' filter leaves too few
+  if (has60 && candidates.length < MIN_RUNS) {
+    sixtyNote = "⚠️ Fewer than "+MIN_RUNS+" runs within ±"+SIXTY_WINDOW+"s of 60' "+cur60.toFixed(3)+"s. Using all runs.";
+    candidates = buildCandidates(false);
+  }
 
-    var EPSILON = 0.0001, weightSum = 0, etSum = 0;
-    for (var j = 0; j < pool.length; j++) {
-      var w = (1 / (pool[j].dist + EPSILON)) * pool[j].confidence;
-      etSum += w * pool[j].et;
-      weightSum += w;
-    }
+  if (candidates.length < MIN_RUNS) return null;
 
-    return {
-      et:    Math.round((etSum / weightSum) * 1000) / 1000,
-      count: candidates.length,
-      used:  pool.length
+  candidates.sort(function(a,b){return a.dist-b.dist;});
+  var pool = candidates.slice(0,Math.min(10,candidates.length));
+
+  // Weighted average
+  var EPSILON=0.0001, wSum=0, eSum=0;
+  for (var i=0;i<pool.length;i++) {
+    var wt=(1/(pool[i].dist+EPSILON))*pool[i].conf;
+    eSum+=wt*pool[i].et; wSum+=wt;
+  }
+  var weightedAvg = eSum/wSum;
+
+  // Linear regression blend (ET vs DA)
+  var n=candidates.length,sDA=0,sET=0,sDAET=0,sDA2=0;
+  for (var i=0;i<n;i++) {
+    sDA+=candidates[i].da; sET+=candidates[i].et;
+    sDAET+=candidates[i].da*candidates[i].et;
+    sDA2+=candidates[i].da*candidates[i].da;
+  }
+  var slope=(n*sDAET-sDA*sET)/(n*sDA2-sDA*sDA);
+  var intercept=(sET-slope*sDA)/n;
+  var regPred=intercept+slope*(weather.da||0);
+
+  var minDA=candidates[0].da, maxDA=candidates[0].da;
+  for (var i=1;i<n;i++){
+    if(candidates[i].da<minDA) minDA=candidates[i].da;
+    if(candidates[i].da>maxDA) maxDA=candidates[i].da;
+  }
+  var daRange=maxDA-minDA;
+  var blendFactor=0;
+  if (!isNaN(weather.da)&&daRange>0) {
+    var outside=0;
+    if(weather.da>maxDA) outside=weather.da-maxDA;
+    if(weather.da<minDA) outside=minDA-weather.da;
+    blendFactor=Math.min(0.5,outside/daRange);
+  }
+
+  var estimated = Math.round(((1-blendFactor)*weightedAvg+blendFactor*regPred)*1000)/1000;
+  return { et:estimated, count:candidates.length, used:pool.length,
+           blend:blendFactor, sixtyNote:sixtyNote };
+}
+
+// ── UI Helpers ────────────────────────────────────────────────────────────────
+function showValue(id,metaId,result) {
+  var el=document.getElementById(id), meta=document.getElementById(metaId);
+  if(result){
+    el.textContent=result.et.toFixed(3);
+    el.className="value";
+    var note = result.used+" of "+result.count+" runs";
+    if(result.blend>0.01) note+=" ("+Math.round(result.blend*100)+"% regression blend)";
+    meta.textContent=note;
+  } else {
+    el.textContent="N/A"; el.className="value na";
+    meta.textContent="not enough qualifying runs";
+  }
+}
+
+function onTrackChange() {
+  document.getElementById("status").textContent="Press Calculate to fetch weather and estimate";
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+function calculate() {
+  var track = document.getElementById("trackSelect").value;
+  if(!track){document.getElementById("status").textContent="Select a track first.";return;}
+
+  var cur60input = parseFloat(document.getElementById("sixtyInput").value);
+  var cur60 = isNaN(cur60input) ? NaN : cur60input;
+
+  document.getElementById("eighth").textContent="...";
+  document.getElementById("quarter").textContent="...";
+  document.getElementById("eighth").className="value na";
+  document.getElementById("quarter").className="value na";
+  document.getElementById("eighth-meta").textContent="";
+  document.getElementById("quarter-meta").textContent="";
+  document.getElementById("warn").textContent="";
+  document.getElementById("error").textContent="";
+  document.getElementById("status").textContent="Fetching weather & run data...";
+
+  var coords=TRACKS[track];
+  var weatherUrl="https://api.open-meteo.com/v1/forecast"
+    +"?latitude="+coords.lat+"&longitude="+coords.lon
+    +"&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,surface_pressure"
+    +"&temperature_unit=celsius&wind_speed_unit=ms&timezone=America%2FNew_York";
+
+  Promise.all([
+    fetch(weatherUrl).then(function(r){return r.json();}),
+    fetch(CSV_URL+"&t="+Date.now()).then(function(r){return r.text();})
+  ]).then(function(results){
+    var c=results[0].current;
+    var tempC=c.temperature_2m, rh=c.relative_humidity_2m;
+    var windMs=c.wind_speed_10m, windDeg=c.wind_direction_10m, pressHpa=c.surface_pressure;
+
+    var weather = {
+      tempF:    cToF(tempC),
+      rh:       rh,
+      windMph:  msToMph(windMs),
+      windDeg:  windDeg,
+      dewF:     cToF(dewPoint(tempC,rh)),
+      pressIn:  hpaToInhg(pressHpa),
+      da:       calcDA(cToF(tempC),rh,hpaToInhg(pressHpa)),
+      launchRPM: NaN,
+      tire:      NaN
     };
-  }
 
-  // ── Display helpers ─────────────────────────────────────────────────────────
-  function showValue(id, metaId, result) {
-    var el   = document.getElementById(id);
-    var meta = document.getElementById(metaId);
-    if (result) {
-      el.textContent   = result.et.toFixed(3);
-      el.className     = "value";
-      meta.textContent = "from " + result.used + " of " + result.count + " runs";
-    } else {
-      el.textContent   = "N/A";
-      el.className     = "value na";
-      meta.textContent = "no qualifying runs";
-    }
-  }
+    // Show weather
+    document.getElementById("w-temp").textContent=Math.round(weather.tempF*10)/10;
+    document.getElementById("w-dew").textContent=Math.round(weather.dewF*10)/10;
+    document.getElementById("w-hum").textContent=Math.round(weather.rh);
+    document.getElementById("w-pres").textContent=Math.round(weather.pressIn*100)/100;
+    document.getElementById("w-wind").textContent=Math.round(weather.windMph*10)/10;
+    document.getElementById("w-dir").textContent=degToCompass(windDeg);
+    document.getElementById("w-da").textContent=Math.round(weather.da).toLocaleString();
+    document.getElementById("weather").style.display="block";
 
-  function showWeather(w) {
-    document.getElementById("w-temp").textContent = Math.round(w.tempF * 10) / 10;
-    document.getElementById("w-dew").textContent  = Math.round(w.dewF  * 10) / 10;
-    document.getElementById("w-hum").textContent  = Math.round(w.rh);
-    document.getElementById("w-pres").textContent = Math.round(w.pressIn * 100) / 100;
-    document.getElementById("w-wind").textContent = Math.round(w.windMph * 10) / 10;
-    document.getElementById("w-dir").textContent  = w.windDir;
-    document.getElementById("weather").style.display = "block";
-  }
+    var rows = parseCSV(results[1]);
 
-  function setStatus(msg) {
-    document.getElementById("status").textContent = msg;
-  }
+    var est8  = estimateET(rows, track, weather, COL_ET_8TH,  cur60);
+    var est4  = estimateET(rows, track, weather, COL_ET_4TH,  cur60);
 
-  function setError(msg) {
-    document.getElementById("error").textContent = msg;
-  }
+    showValue("eighth",  "eighth-meta",  est8);
+    showValue("quarter", "quarter-meta", est4);
 
-  // ── Main calculate function ─────────────────────────────────────────────────
-  function calculate() {
-    var track = document.getElementById("trackSelect").value;
-    if (!track) {
-      setStatus("Select a track to begin");
-      return;
-    }
+    var warns = [];
+    if(est8&&est8.sixtyNote) warns.push(est8.sixtyNote);
+    if(est4&&est4.sixtyNote&&est4.sixtyNote!==est8.sixtyNote) warns.push(est4.sixtyNote);
+    if(warns.length) document.getElementById("warn").textContent=warns.join("\n");
 
-    setError("");
-    setStatus("Fetching weather & run data...");
-    document.getElementById("eighth").textContent  = "...";
-    document.getElementById("quarter").textContent = "...";
-    document.getElementById("eighth").className    = "value na";
-    document.getElementById("quarter").className   = "value na";
-    document.getElementById("eighth-meta").textContent  = "";
-    document.getElementById("quarter-meta").textContent = "";
+    var now=new Date();
+    document.getElementById("status").textContent=
+      "Updated "+now.toLocaleTimeString([],{hour:"numeric",minute:"2-digit",second:"2-digit"});
 
-    Promise.all([fetchWeather(track), fetchSheet()])
-      .then(function(results) {
-        var weather = results[0];
-        var rows    = results[1];
-
-        currentWeather = weather;
-        sheetRows      = rows;
-
-        showWeather(weather);
-
-        var est8  = estimateET(rows, track, weather, COL_ET_8TH);
-        var est4  = estimateET(rows, track, weather, COL_ET_4TH);
-
-        showValue("eighth",  "eighth-meta",  est8);
-        showValue("quarter", "quarter-meta", est4);
-
-        var now = new Date();
-        setStatus("Updated " + now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" }));
-      })
-      .catch(function(err) {
-        setError("Error loading data. Check connection.");
-        setStatus("");
-        console.error(err);
-      });
-  }
-
-  // ── Auto-refresh removed — use the Refresh button ──────────────────────────
-
-  </script>
-
-  <button onclick="calculate()" style="margin-top:24px;padding:14px 48px;background:#333;border:none;color:#fff;border-radius:30px;font-size:16px;cursor:pointer;">Refresh</button>
-
+  }).catch(function(err){
+    document.getElementById("error").textContent="Error loading data. Check connection.";
+    document.getElementById("status").textContent="";
+    console.error(err);
+  });
+}
+</script>
 </body>
 </html>
