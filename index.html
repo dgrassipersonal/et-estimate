@@ -94,22 +94,22 @@ var TRACKS = {
 // Published Google Sheets CSV URL
 var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRoXbQLC91IfKf9kBgqd7faP1VIEc-rMQy4ZE2h3ekdDc7RZPQeevw_pPo_Hr_rue1NdL4nRrGRGh3M/pub?gid=28415674&single=true&output=csv";
 
-// Column indexes (0-based) — must match sheet layout
-var COL_TRACK   = 0;   // A
-var COL_QUALITY = 5;   // F
-var COL_SIXTY   = 8;   // I
-var COL_ET_8TH  = 12;  // M
-var COL_ET_4TH  = 17;  // R
-var COL_TEMP    = 18;  // S
-var COL_HUM     = 19;  // T
-var COL_WSPD    = 20;  // U
-var COL_WDIR    = 21;  // V
-var COL_DEW     = 22;  // W
-var COL_PRESS   = 23;  // X
-var COL_DA      = 24;  // Y
-var COL_RPM     = 28;  // AC
-var COL_ETDIFF  = 27;  // AB
-var COL_TIRE    = 30;  // AE
+// Column indexes (0-based) — verified against actual sheet
+var COL_TRACK   = 0;   // A - Track
+var COL_QUALITY = 5;   // F - Quality
+var COL_SIXTY   = 8;   // I - 60'
+var COL_ET_8TH  = 12;  // M - 1/8 ET
+var COL_ET_4TH  = 16;  // Q - 1/4 ET
+var COL_TEMP    = 18;  // S - Temp
+var COL_HUM     = 19;  // T - Humidity
+var COL_WSPD    = 20;  // U - Wind Speed
+var COL_WDIR    = 21;  // V - Wind Direction
+var COL_DEW     = 22;  // W - Dew Point
+var COL_PRESS   = 23;  // X - Pressure
+var COL_DA      = 24;  // Y - Density Altitude
+var COL_RPM     = 28;  // AC - Launch RPM
+var COL_ETDIFF  = 27;  // AB - Diff
+var COL_TIRE    = 30;  // AE - Rear PSI
 
 var FIRST_DATA_ROW = 6; // 0-based index for sheet row 7
 var MIN_RUNS = 5;
