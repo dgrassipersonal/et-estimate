@@ -31,7 +31,6 @@
            color:#fff; border-radius:30px; font-size:16px; cursor:pointer;
            width:100%; max-width:320px; }
     .btn:active { background:#1F4E79; }
-    .warn { color:#e65100; font-size:12px; margin-top:8px; text-align:center; max-width:320px; }
     .status { margin-top:12px; font-size:11px; color:#444; }
     .error { color:#c0392b; font-size:13px; margin-top:12px; text-align:center; }
   </style>
@@ -69,7 +68,6 @@
     <div>Density Alt <span id="w-da">—</span> ft</div>
   </div>
 
-  <div class="warn" id="warn"></div>
   <button class="btn" onclick="calculate()">Calculate</button>
   <div class="status" id="status">Select a track and press Calculate</div>
   <div class="error" id="error"></div>
@@ -86,14 +84,13 @@ var TRACKS = {
 
 var CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRoXbQLC91IfKf9kBgqd7faP1VIEc-rMQy4ZE2h3ekdDc7RZPQeevw_pPo_Hr_rue1NdL4nRrGRGh3M/pub?gid=28415674&single=true&output=csv";
 
-// Column indexes (0-based) — verified from sheet header row:
+// Column indexes (0-based) verified from sheet header:
 // Track,Date,Time,Lane,Result,Quality,Dial In,Reaction,60',60-330 Split,
 // 330',330-1/8 Split,1/8 ET,1/8 MPH,1000',1000' MPH,1/4 ET,1/4 MPH,
 // Temp,Humidity,Wind Speed,Wind Direction,Dew Point,Pressure,Density Altitude,
 // Trend,ET Estimate,Diff,Launch RPM,Front PSI,Rear PSI,Notes
 var COL_TRACK  = 0;
 var COL_QUAL   = 5;
-var COL_SIXTY  = 8;
 var COL_ET8    = 12;
 var COL_ET4    = 16;
 var COL_TEMP   = 18;
@@ -103,19 +100,15 @@ var COL_WDIR   = 21;
 var COL_DEW    = 22;
 var COL_PRESS  = 23;
 var COL_DA     = 24;
-var COL_ETEST  = 26;
 var COL_DIFF   = 27;
 var COL_RPM    = 28;
 var COL_TIRE   = 30;
 
-// The CSV header row contains "Track" in col 0 — data starts on the NEXT row
-// after the header. We find the header row by looking for "Track".
-var MIN_RUNS      = 5;
-var SIXTY_WINDOW  = 0.030;
+var MIN_RUNS = 5;
 
-// Weights — must match WeatherLogger.gs exactly
+// Weights — identical to WeatherLogger.gs v1.0.39
 var W = { temp:0.3, hum:0.2, wind:0.1, dew:0.3, press:3.0,
-          rpm:0.4, da:5.0, react:0.2, tire:0.3 };
+          rpm:0.4, da:5.0, tire:0.3 };
 var RPM_MIN=2000, RPM_RANGE=500;
 var TIRE_MIN=15,  TIRE_RANGE=5;
 
@@ -154,83 +147,59 @@ function parseCSV(text) {
   });
 }
 
-// Find the first row index where col 0 = "Track" (the header row),
-// then data starts at header+1
 function findDataStart(rows) {
   for(var i=0;i<rows.length;i++){
     if((rows[i][0]||"").trim().toLowerCase()==="track") return i+1;
   }
-  return 6; // fallback
+  return 6;
 }
 
-// ── Estimation ────────────────────────────────────────────────────────────────
+// ── Estimation — identical logic to WeatherLogger.gs v1.0.39 ─────────────────
 function estimate(rows, dataStart, track, weather, etCol) {
-  // Read most recent 60' for this track from the sheet (first matching row after dataStart)
-  var cur60 = NaN;
+  var candidates = [];
+
   for(var i=dataStart;i<rows.length;i++){
     var r=rows[i];
-    if(!r||r.length<10) continue;
+    if(!r||r.length<25) continue;
     if((r[COL_TRACK]||"").trim()!==track) continue;
-    var s=parseFloat(r[COL_SIXTY]);
-    if(!isNaN(s)&&s>0){cur60=s;break;}
-  }
-  var has60=!isNaN(cur60)&&cur60>0;
+    var q=(r[COL_QUAL]||"").toLowerCase();
+    if(q.indexOf("flawed")!==-1||q.indexOf("lifted")!==-1) continue;
+    var et=parseFloat(r[etCol]);
+    if(isNaN(et)||et<=0) continue;
 
-  function buildCandidates(use60) {
-    var c=[];
-    for(var i=dataStart;i<rows.length;i++){
-      var r=rows[i];
-      if(!r||r.length<25) continue;
-      if((r[COL_TRACK]||"").trim()!==track) continue;
-      var q=(r[COL_QUAL]||"").toLowerCase();
-      if(q.indexOf("flawed")!==-1||q.indexOf("lifted")!==-1) continue;
-      var et=parseFloat(r[etCol]);
-      if(isNaN(et)||et<=0) continue;
-      if(use60&&has60){
-        var r60=parseFloat(r[COL_SIXTY]);
-        if(!isNaN(r60)&&r60>0&&Math.abs(cur60-r60)>SIXTY_WINDOW) continue;
-      }
-      var rT=parseFloat(r[COL_TEMP]),rH=parseFloat(r[COL_HUM]);
-      var rW=parseFloat(r[COL_WSPD]),rD=parseFloat(r[COL_DEW]),rP=parseFloat(r[COL_PRESS]);
-      var rDA=parseFloat(r[COL_DA]);
-      if(isNaN(rT)||isNaN(rH)||isNaN(rP)) continue;
+    var rT=parseFloat(r[COL_TEMP]),rH=parseFloat(r[COL_HUM]);
+    var rW=parseFloat(r[COL_WSPD]),rD=parseFloat(r[COL_DEW]),rP=parseFloat(r[COL_PRESS]);
+    var rDA=parseFloat(r[COL_DA]);
+    if(isNaN(rT)||isNaN(rH)||isNaN(rP)) continue;
 
-      var daTerm=(!isNaN(weather.da)&&!isNaN(rDA))?W.da*Math.pow((weather.da-rDA)/500,2):0;
+    var daTerm=(!isNaN(weather.da)&&!isNaN(rDA))?W.da*Math.pow((weather.da-rDA)/500,2):0;
 
-      var rRPM=parseFloat(r[COL_RPM]),rpmTerm=0;
-      if(!isNaN(weather.rpm)){
-        var cn=(weather.rpm-RPM_MIN)/RPM_RANGE;
-        var rn=isNaN(rRPM)?cn:(rRPM-RPM_MIN)/RPM_RANGE;
-        rpmTerm=W.rpm*Math.pow(cn-rn,2);
-      }
-
-      var rTire=parseFloat(r[COL_TIRE]),tireTerm=0;
-      if(!isNaN(weather.tire)&&!isNaN(rTire)){
-        tireTerm=W.tire*Math.pow((weather.tire-TIRE_MIN)/TIRE_RANGE-(rTire-TIRE_MIN)/TIRE_RANGE,2);
-      }
-
-      var dist=Math.sqrt(
-        W.temp *Math.pow(weather.tempF  -rT,2)+
-        W.hum  *Math.pow(weather.rh     -rH,2)+
-        W.wind *Math.pow(weather.windMph-rW,2)+
-        W.dew  *Math.pow(weather.dewF   -rD,2)+
-        W.press*Math.pow(weather.pressIn-rP,2)+
-        daTerm+rpmTerm+tireTerm
-      );
-
-      var diff=parseFloat(r[COL_DIFF]);
-      var conf=isNaN(diff)?1.0:1.0/(1.0+Math.abs(diff)*10);
-      c.push({et:et,dist:dist,conf:conf,da:rDA});
+    var rRPM=parseFloat(r[COL_RPM]),rpmTerm=0;
+    if(!isNaN(weather.rpm)){
+      var cn=(weather.rpm-RPM_MIN)/RPM_RANGE;
+      var rn=isNaN(rRPM)?cn:(rRPM-RPM_MIN)/RPM_RANGE;
+      rpmTerm=W.rpm*Math.pow(cn-rn,2);
     }
-    return c;
+
+    var rTire=parseFloat(r[COL_TIRE]),tireTerm=0;
+    if(!isNaN(weather.tire)&&!isNaN(rTire)){
+      tireTerm=W.tire*Math.pow((weather.tire-TIRE_MIN)/TIRE_RANGE-(rTire-TIRE_MIN)/TIRE_RANGE,2);
+    }
+
+    var dist=Math.sqrt(
+      W.temp *Math.pow(weather.tempF  -rT,2)+
+      W.hum  *Math.pow(weather.rh     -rH,2)+
+      W.wind *Math.pow(weather.windMph-rW,2)+
+      W.dew  *Math.pow(weather.dewF   -rD,2)+
+      W.press*Math.pow(weather.pressIn-rP,2)+
+      daTerm+rpmTerm+tireTerm
+    );
+
+    var diff=parseFloat(r[COL_DIFF]);
+    var conf=isNaN(diff)?1.0:1.0/(1.0+Math.abs(diff)*10);
+    candidates.push({et:et,dist:dist,conf:conf,da:rDA});
   }
 
-  var candidates=buildCandidates(true);
-  var sixtyNote="";
-  if(has60&&candidates.length<MIN_RUNS){
-    sixtyNote="⚠️ Not enough runs within ±"+SIXTY_WINDOW+"s of 60' "+cur60.toFixed(3)+"s. Using all runs.";
-    candidates=buildCandidates(false);
-  }
   if(candidates.length<MIN_RUNS) return null;
 
   candidates.sort(function(a,b){return a.dist-b.dist;});
@@ -243,15 +212,20 @@ function estimate(rows, dataStart, track, weather, etCol) {
   }
   var wavg=eSum/wSum;
 
-  // Linear regression blend
+  // Linear regression blend for out-of-range DA
   var n=candidates.length,sDA=0,sET=0,sDAET=0,sDA2=0;
   for(var i=0;i<n;i++){
-    sDA+=candidates[i].da;sET+=candidates[i].et;
-    sDAET+=candidates[i].da*candidates[i].et;sDA2+=candidates[i].da*candidates[i].da;
+    sDA+=candidates[i].da; sET+=candidates[i].et;
+    sDAET+=candidates[i].da*candidates[i].et;
+    sDA2+=candidates[i].da*candidates[i].da;
   }
-  var slope=(n*sDAET-sDA*sET)/(n*sDA2-sDA*sDA);
-  var intercept=(sET-slope*sDA)/n;
-  var regPred=intercept+slope*(weather.da||0);
+  var denom=(n*sDA2-sDA*sDA);
+  var regPred=wavg;
+  if(denom!==0){
+    var slope=(n*sDAET-sDA*sET)/denom;
+    var intercept=(sET-slope*sDA)/n;
+    regPred=intercept+slope*(weather.da||0);
+  }
 
   var minDA=candidates[0].da,maxDA=candidates[0].da;
   for(var i=1;i<n;i++){
@@ -267,21 +241,19 @@ function estimate(rows, dataStart, track, weather, etCol) {
   }
 
   var et=Math.round(((1-blend)*wavg+blend*regPred)*1000)/1000;
-  return{et:et,count:candidates.length,used:pool.length,blend:blend,
-         sixtyNote:sixtyNote,cur60:cur60};
+  return{et:et,count:candidates.length,used:pool.length,blend:blend};
 }
 
 // ── Display ───────────────────────────────────────────────────────────────────
 function show(id,metaId,result){
   var el=document.getElementById(id),meta=document.getElementById(metaId);
   if(result){
-    el.textContent=result.et.toFixed(3);el.className="value";
+    el.textContent=result.et.toFixed(3); el.className="value";
     var note=result.used+" of "+result.count+" runs";
-    if(!isNaN(result.cur60)&&result.cur60>0) note+=" | 60': "+result.cur60.toFixed(3)+"s";
-    if(result.blend>0.01) note+=" | "+Math.round(result.blend*100)+"% regression";
+    if(result.blend>0.01) note+=" | "+Math.round(result.blend*100)+"% regression blend";
     meta.textContent=note;
-  }else{
-    el.textContent="N/A";el.className="value na";
+  } else {
+    el.textContent="N/A"; el.className="value na";
     meta.textContent="not enough qualifying runs";
   }
 }
@@ -296,7 +268,6 @@ function calculate(){
     document.getElementById(id).className="value na";
     document.getElementById(id+"-meta").textContent="";
   });
-  document.getElementById("warn").textContent="";
   document.getElementById("error").textContent="";
   document.getElementById("status").textContent="Fetching weather & run data...";
 
@@ -315,9 +286,9 @@ function calculate(){
     var wms=c.wind_speed_10m,wdeg=c.wind_direction_10m,hpa=c.surface_pressure;
 
     var weather={
-      tempF:   cToF(tC), rh:rh, windMph:msToMph(wms),
-      dewF:    cToF(dewPt(tC,rh)), pressIn:hpaToIn(hpa),
-      da:      calcDA(cToF(tC),rh,hpaToIn(hpa)),
+      tempF:cToF(tC), rh:rh, windMph:msToMph(wms),
+      dewF:cToF(dewPt(tC,rh)), pressIn:hpaToIn(hpa),
+      da:calcDA(cToF(tC),rh,hpaToIn(hpa)),
       rpm:NaN, tire:NaN
     };
 
@@ -333,16 +304,8 @@ function calculate(){
     var rows=parseCSV(res[1]);
     var dataStart=findDataStart(rows);
 
-    var est8=estimate(rows,dataStart,track,weather,COL_ET8);
-    var est4=estimate(rows,dataStart,track,weather,COL_ET4);
-
-    show("eighth","eighth-meta",est8);
-    show("quarter","quarter-meta",est4);
-
-    var warns=[];
-    if(est8&&est8.sixtyNote) warns.push(est8.sixtyNote);
-    if(est4&&est4.sixtyNote&&est4.sixtyNote!==est8.sixtyNote) warns.push(est4.sixtyNote);
-    document.getElementById("warn").textContent=warns.join("\n");
+    show("eighth","eighth-meta",estimate(rows,dataStart,track,weather,COL_ET8));
+    show("quarter","quarter-meta",estimate(rows,dataStart,track,weather,COL_ET4));
 
     var now=new Date();
     document.getElementById("status").textContent=
