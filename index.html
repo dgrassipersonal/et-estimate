@@ -240,7 +240,7 @@ function estimate(rows, dataStart, track, weather, etCol) {
     blend=Math.min(0.5,out/daRange);
   }
 
-  var et=Math.round(((1-blend)*wavg+blend*regPred)*1000)/1000;
+  var et=Math.round(((1-blend)*wavg+blend*regPred)*100)/100;
   return{et:et,count:candidates.length,used:pool.length,blend:blend};
 }
 
@@ -248,7 +248,7 @@ function estimate(rows, dataStart, track, weather, etCol) {
 function show(id,metaId,result){
   var el=document.getElementById(id),meta=document.getElementById(metaId);
   if(result){
-    el.textContent=result.et.toFixed(3); el.className="value";
+    el.textContent=result.et.toFixed(2); el.className="value";
     var note=result.used+" of "+result.count+" runs";
     if(result.blend>0.01) note+=" | "+Math.round(result.blend*100)+"% regression blend";
     meta.textContent=note;
